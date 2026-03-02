@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One PieceDle - MultiMode</title>
+    <style>
+        :root {
+            --op-gold: #c9a050;
+            --op-dark: #0a0a0a;
+            --correct: #1d804c;
+            --wrong: #8d2022;
+            --partial: #c9a050;
+            --cell-bg: rgba(0, 0, 0, 0.6);
+        }
+
+        .berry-icon { width: 14px; height: auto; vertical-align: middle; margin-right: 4px; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--op-dark);
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('img/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container { width: 98%; max-width: 1400px; text-align: center; padding: 20px; }
+        #game-interface { display: none; }
+        .controls { margin-bottom: 25px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        
+        /* Menu Buttons */
+.menu-btn {
+    position: relative; 
+    height: 120px; 
+    border: 3px solid var(--op-gold);
+    border-radius: 15px; 
+    overflow: hidden; 
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s; 
+    display: flex;
+    align-items: center; 
+    justify-content: center;
+    background-color: #000; /* Fond noir au cas où l'image charge mal */
+        }
+        .menu-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(201, 160, 80, 0.5); }
+
+.menu-btn img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    z-index: 1; 
+    opacity: 0.6; /* Un peu plus sombre pour faire ressortir le texte blanc */
+    transition: opacity 0.3s;
+}
+
+.menu-btn:hover img {
+    opacity: 0.8;
+}
+
+.menu-btn span { 
+    position: relative; 
+    z-index: 2; 
+    font-size: 2.2rem; 
+    font-weight: 900; 
+    text-shadow: 3px 3px 10px black; 
+    color: white; 
+    text-transform: uppercase; 
+}
+    
+    .wanted-img-wrapper {
+        width: 300px;
+        height: 300px;
+        border: 5px solid var(--op-gold);
+        border-radius: 15px;
+        overflow: hidden;
+        background: #000;
+        margin-bottom: 20px;
+        box-shadow: 0 0 25px rgba(201, 160, 80, 0.4);
+    }
+    
+    #wanted-target-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        /* Le filtre de base : Noir et blanc + Flou intense */
+        filter: grayscale(1) blur(30px);
+        transition: filter 0.5s ease;
+    }
+
+    .cols-wanted { grid-template-columns: 90px 1fr; }
+
+        /* Legend Style */
+        .legend {
+            display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;
+            margin-bottom: 20px; padding: 15px; background: rgba(0,0,0,0.5);
+            border-radius: 12px; border: 1px solid rgba(201, 160, 80, 0.3); font-size: 0.85rem;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; }
+        .box { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); }
+
+        /* Search & Grid */
+        .search-box { position: relative; max-width: 600px; margin: 0 auto 30px; }
+        input {
+            width: 100%; padding: 18px; background: rgba(30, 30, 30, 0.9); border: 2px solid #444;
+            color: white; border-radius: 12px; font-size: 1.1em; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--op-gold); box-shadow: 0 0 15px rgba(201, 160, 80, 0.3); }
+
+        #suggestions {
+            position: absolute; width: 100%; background: #1a1a1a; z-index: 100;
+            list-style: none; padding: 5px; margin: 5px 0 0; border-radius: 8px;
+            max-height: 300px; overflow-y: auto; border: 1px solid #444;
+        }
+        #suggestions li { padding: 10px; cursor: pointer; border-radius: 6px; margin-bottom: 2px; display: flex; align-items: center; gap: 15px; text-align: left; }
+        #suggestions li:hover { background: #333; }
+        #suggestions img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 1px solid var(--op-gold); }
+
+        .grid-container { overflow-x: auto; padding: 10px; }
+        .grid-header, .row { display: grid; gap: 8px; min-width: 1150px; margin-bottom: 12px; }
+        .cols-char { grid-template-columns: 90px repeat(9, 1fr); }
+        .cols-fruit { grid-template-columns: 90px repeat(5, 1fr); }
+
+        .cell {
+            background: var(--cell-bg); height: 100px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 700;
+            border-radius: 10px; border: 2px solid rgba(255,255,255,0.1); text-align: center;
+            padding: 8px; box-sizing: border-box;
+        }
+        .cell img.char-pic { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+        .correct { background-color: var(--correct) !important; }
+        .wrong { background-color: var(--wrong) !important; }
+        .partial { background-color: var(--partial) !important; color: #000; }
+        .arrow { font-size: 1.4em; margin-top: 5px; }
+        
+        .btn { padding: 12px 20px; border: 2px solid var(--op-gold); background: rgba(0,0,0,0.5); color: var(--op-gold); cursor: pointer; border-radius: 8px; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
+        .btn:hover { background: var(--op-gold); color: white; }
+        #hint-display { margin: 10px auto; padding: 10px; color: var(--op-gold); font-style: italic; font-weight: bold; min-height: 20px; text-shadow: 1px 1px 5px black; }
+
+        footer {
+            margin-top: 50px; padding: 20px; text-align: center; width: 100%;
+            background: rgba(0, 0, 0, 0.8); border-top: 2px solid var(--op-gold);
+            font-size: 0.9rem; line-height: 1.6;
+        }
+        .footer-credit { color: var(--op-gold); font-weight: bold; letter-spacing: 1px; }
+        .footer-discord { color: #7289da; font-family: monospace; }
+        .footer-fun { font-style: italic; opacity: 0.8; max-width: 600px; margin: 10px auto 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 onclick="location.reload()" style="cursor:pointer; letter-spacing: 8px; font-size: 3em; margin: 30px 0; text-shadow: 3px 3px 10px rgba(0,0,0,0.8);">ONEPIECEDLE</h1>
+
+<div id="menu-screen" style="display: flex; flex-direction: column; gap: 20px; max-width: 600px; margin: 0 auto;">
+    <div class="menu-btn" onclick="startMode('char')">
+        <img src="img/mode_classique.png" alt="Personnage">
+        <span>PERSONNAGE</span>
+    </div>
+    <div class="menu-btn" onclick="startMode('fruit')">
+        <img src="img/mode_fruit.png" alt="Fruit">
+        <span>FRUIT</span>
+    </div>
+    <div class="menu-btn" onclick="startMode('wanted')">
+        <img src="img/mode_wanted.png" alt="Wanted">
+        <span>WANTED</span>
+    </div>
+</div>
+
+<div id="game-interface" style="display: none;">
+    
+    <div id="wanted-container" style="display: none; flex-direction: column; align-items: center; margin-bottom: 20px;">
+        <div class="wanted-img-wrapper">
+            <img id="wanted-target-img" src="" alt="Mystery Character" style="width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) blur(30px); transition: filter 0.5s ease;">
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="location.reload()">Menu</button>
+        <button class="btn" onclick="initGame()">Nouveau</button>
+        <button class="btn" onclick="showHint()" id="hintBtn">Indice</button>
+        <button class="btn" onclick="giveUp()" style="color:#ff4444; border-color:#ff4444">Abandonner</button>
+    </div>
+
+    <div class="legend" id="game-legend">
+        <div class="legend-item"><div class="box" style="background:var(--correct)"></div> Correct</div>
+        <div class="legend-item"><div class="box" style="background:var(--partial)"></div> Pas loin</div>
+        <div class="legend-item"><div class="box" style="background:var(--wrong)"></div> Incorrect</div>
+        <div class="legend-item"><span>▼</span> Plus bas</div>
+        <div class="legend-item"><span>▲</span> Plus haut</div>
+    </div>
+
+    <div id="hint-display"></div>
+
+    <div class="search-box">
+        <input type="text" id="guessInput" placeholder="Écrivez un nom..." autocomplete="off">
+        <ul id="suggestions"></ul>
+    </div>
+
+    <div class="grid-container">
+        <div id="grid-header" class="grid-header"></div>
+        <div id="grid"></div>
+    </div>
+</div>
+
+<footer>
+    <div class="footer-credit">Developed by Ratek</div>
+    <div class="footer-discord">Contact Discord : ungrosnoobendef</div>
+    <div class="footer-fun">
+        Simplement du fun pour One PieceDle à l'infini pour les accros qui n'ont pas leur dose quotidienne.
+    </div>
+</footer>
+
+<script>
+
+    const arcOrder = ["Romance Dawn", "Orange Town", "Syrup Village", "Baratie", "Arlong Park", "Loguetown", "Reverse Mountain", "Whiskey Peak", "Little Garden", "Drum Island", "Alabasta", "Jaya", "Skypeia", "Long Ring Long Land", "Water Seven", "Enies Lobby", "Thriller Bark", "Archipel Sabaody", "Amazon Lily", "Impel Down", "Marineford", "Post-War", "Retour à Archipel Sabaody", "Île des Hommes-Poissons", "Punk Hazard", "Dressrosa", "Zou", "Whole Cake Island", "Reverie", "Wano Country", "Egg Head", "Elbaf"];
+
+	const normalizeStr = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const db = {
+        char: [
+        { name: "Monkey D. Luffy", crew: "Chapeau de Paille", fruit: "Zoan", origin: "East Blue", bounty: 3000000000, age: 19, height: 174, weight: 64, arc: "Romance Dawn", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Boa Hancock", crew: "Kuja", fruit: "Paramecia", origin: "Calm Belt", bounty: 1659000000, age: 29, height: 191, weight: 60, arc: "Amazon Lily", haki: "👑, 👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Charlotte Katakuri", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 1057000000, age: 48, height: 509, weight: 180, arc: "Whole Cake Island", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Linlin", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 4388000000, age: 68, height: 880, weight: 550, arc: "Île des Hommes-Poissons", haki: "👑, 👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Chinjao", crew: "Chinjao Family", fruit: "Aucun", origin: "West Blue", bounty: 542000000, age: 78, height: 520, weight: 400, arc: "Dressrosa", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Donquixote Doflamingo", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "Red Line", bounty: 340000000, age: 41, height: 305, weight: 120, arc: "Jaya", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Edward Newgate", crew: "Barbe Blanche", fruit: "Paramecia", origin: "Grand Line", bounty: 5046000000, age: 72, height: 666, weight: 500, arc: "Jaya", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Ethanbaron V. Nusjuro", crew: "Five Elders", fruit: "Zoan", origin: "Inconnu", bounty: 0, age: 800, height: 200, weight: 80, arc: "Jaya", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Eustass Kid", crew: "Kid Pirates", fruit: "Paramecia", origin: "South Blue", bounty: 3000000000, age: 23, height: 205, weight: 95, arc: "Archipel Sabaody", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Gol D. Roger", crew: "Roger Pirates", fruit: "Aucun", origin: "East Blue", bounty: 5564800000, age: 53, height: 274, weight: 130, arc: "Romance Dawn", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Roronoa Zoro", crew: "Chapeau de Paille", fruit: "Aucun", origin: "East Blue", bounty: 1111000000, age: 21, height: 181, weight: 80, arc: "Romance Dawn", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Scopper Gaban", crew: "Roger Pirates", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 75, height: 188, weight: 85, arc: "Orange Town", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Sengoku", crew: "Marines", fruit: "Zoan", origin: "South Blue", bounty: 0, age: 79, height: 278, weight: 115, arc: "Jaya", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Shanks", crew: "Red Hair Pirates", fruit: "Aucun", origin: "West Blue", bounty: 4048900000, age: 39, height: 199, weight: 88, arc: "Romance Dawn", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Silvers Rayleigh", crew: "Roger Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 78, height: 188, weight: 82, arc: "Orange Town", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Yamato", origin: "Inconnu", fruit: "Zoan", origin: "Wano Country", bounty: 0, age: 28, height: 263, weight: 75, arc: "Wano Country", haki: "👑, 👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Brook", crew: "Chapeau de Paille", fruit: "Paramecia", origin: "West Blue", bounty: 383000000, age: 90, height: 277, weight: 58, arc: "Thriller Bark", haki: "Aucun", race: "Humain (Squelette)", gender: "Homme" },
+        { name: "Franky", crew: "Chapeau de Paille", fruit: "Aucun", origin: "South Blue", bounty: 394000000, age: 36, height: 240, weight: 150, arc: "Water Seven", haki: "Aucun", race: "Cyborg", gender: "Homme" },
+        { name: "Jinbe", crew: "Chapeau de Paille", fruit: "Aucun", origin: "Grand Line", bounty: 1100000000, age: 46, height: 301, weight: 240, arc: "Impel Down", haki: "👀, 🦾", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Nami", crew: "Chapeau de Paille", fruit: "Aucun", origin: "East Blue", bounty: 366000000, age: 20, height: 170, weight: 55, arc: "Orange Town", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Nico Robin", crew: "Chapeau de Paille", fruit: "Paramecia", origin: "West Blue", bounty: 930000000, age: 30, height: 188, weight: 62, arc: "Whiskey Peak", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Sanji", crew: "Chapeau de Paille", fruit: "Aucun", origin: "North Blue", bounty: 1032000000, age: 21, height: 180, weight: 78, arc: "Baratie", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Tony Tony Chopper", crew: "Chapeau de Paille", fruit: "Zoan", origin: "Grand Line", bounty: 1000, age: 17, height: 90, weight: 30, arc: "Drum Island", haki: "Aucun", race: "Animal (Renne)", gender: "Homme" },
+        { name: "Usopp", crew: "Chapeau de Paille", fruit: "Aucun", origin: "East Blue", bounty: 500000000, age: 19, height: 176, weight: 66, arc: "Syrup Village", haki: "👀", race: "Humain", gender: "Homme" },
+        { name: "Zeus", crew: "Chapeau de Paille", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 2, height: 232, weight: 5, arc: "Whole Cake Island", haki: "Aucun", race: "Homie", gender: "Homme" },
+        { name: "Kaidou", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 4611100000, age: 59, height: 710, weight: 600, arc: "Dressrosa", haki: "👑, 👀, 🦾", race: "Humain (Oni)", gender: "Homme" },
+        { name: "Kouzuki Oden", crew: "Kouzuki Family", fruit: "Aucun", origin: "Wano Country", bounty: 0, age: 39, height: 382, weight: 150, arc: "Wano Country", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Monkey D. Garp", crew: "Marines", fruit: "Aucun", origin: "East Blue", bounty: 3000000000, age: 78, height: 287, weight: 120, arc: "Arlong Park", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Portgas D. Ace", crew: "Barbe Blanche", fruit: "Logia", origin: "South Blue", bounty: 550000000, age: 20, height: 185, weight: 75, arc: "Drum Island", haki: "👑, 👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Imu", crew: "World Gov", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 800, height: 160, weight: 50, arc: "Reverie", haki: "👑, 👀", race: "Aucun", gender: "Aucun" },
+        { name: "Jaygarcia Saturn", crew: "Five Elders", fruit: "Zoan", origin: "Inconnu", bounty: 0, age: 200, height: 220, weight: 100, arc: "Jaya", haki: "👑, 👀", race: "Humain", gender: "Homme" },
+        { name: "Marcus Mars", crew: "Five Elders", fruit: "Zoan", origin: "Inconnu", bounty: 0, age: 800, height: 250, weight: 90, arc: "Jaya", haki: "👑, 👀", race: "Humain", gender: "Homme" },
+        { name: "Topman Warcury", crew: "Five Elders", fruit: "Zoan", origin: "Inconnu", bounty: 0, age: 800, height: 210, weight: 110, arc: "Jaya", haki: "👑, 👀", race: "Humain", gender: "Homme" },
+        { name: "Loki", crew: "Warland Kingdom", fruit: "Zoan", origin: "Elbaf", bounty: 2600000000, age: 63, height: 6000, weight: 2000, arc: "Elbaf", haki: "👑", race: "Géant Antique", gender: "Homme" },
+        { name: "Joy Boy", origin: "Inconnu", fruit: "Zoan", origin: "Great Kingdom", bounty: 0, age: 100, height: 175, weight: 70, arc: "Île des Hommes-Poissons", haki: "👑", race: "Humain", gender: "Homme" },
+        { name: "Harald", crew: "Warland Kingdom", fruit: "Aucun", origin: "Elbaf", bounty: 0, age: 144, height: 1300, weight: 2500, arc: "Elbaf", haki: "👑", race: "Géant", gender: "Homme" },
+        { name: "Davy D. Xebec", crew: "Rocks Pirates", fruit: "Aucun", origin: "West Blue", bounty: 0, age: 50, height: 250, weight: 120, arc: "Wano Country", haki: "👑, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Aramaki Ryokugyu", crew: "Marines", fruit: "Logia", origin: "South Blue", bounty: 3000000000, age: 41, height: 308, weight: 95, arc: "Reverie", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Arber King", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 1390000000, age: 47, height: 613, weight: 250, arc: "Wano Country", haki: "👀, 🦾", race: "Lunaria", gender: "Homme" },
+        { name: "Ashura Doji", crew: "Kouzuki Family", fruit: "Aucun", origin: "Wano Country", bounty: 0, age: 56, height: 544, weight: 300, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Bartholomew Kuma", crew: "Revolutionary Army", fruit: "Paramecia", origin: "South Blue", bounty: 296000000, age: 47, height: 689, weight: 450, arc: "Jaya", haki: "👀, 🦾", race: "Boucanière", gender: "Homme" },
+        { name: "Basil Hawkins", crew: "Hawkins Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 320000000, age: 31, height: 210, weight: 85, arc: "Archipel Sabaody", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Bastille", crew: "Marines", fruit: "Aucun", origin: "Grand Line", bounty: 500000000, age: 38, height: 291, weight: 130, arc: "Marineford", haki: "👀, 🦾", race: "Humain (Géant partiel)", gender: "Homme" },
+        { name: "Bellamy", origin: "Inconnu", fruit: "Paramecia", origin: "North Blue", bounty: 195000000, age: 25, height: 240, weight: 90, arc: "Jaya", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Belo Betty", crew: "Revolutionary Army", fruit: "Paramecia", origin: "East Blue", bounty: 457000000, age: 34, height: 196, weight: 65, arc: "Reverie", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Black Maria", crew: "Beasts Pirates", fruit: "Zoan", origin: "Wano Country", bounty: 480000000, age: 29, height: 820, weight: 350, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Sakazuki Akainu", crew: "Marines", fruit: "Logia", origin: "North Blue", bounty: 5000000000, age: 55, height: 306, weight: 158, arc: "Enies Lobby", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Marshall D. Teach", crew: "Blackbeard Pirates", fruit: "Plusieurs", origin: "Grand Line", bounty: 3996000000, age: 40, height: 344, weight: 195, arc: "Jaya", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Dracule Mihawk", crew: "Cross Guild", fruit: "Aucun", origin: "Inconnu", bounty: 3590000000, age: 43, height: 198, weight: 85, arc: "Baratie", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Baggy", crew: "Cross Guild", fruit: "Paramecia", origin: "Grand Line", bounty: 3189000000, age: 39, height: 192, weight: 78, arc: "Orange Town", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Borsalino Kizaru", crew: "Marines", fruit: "Logia", origin: "North Blue", bounty: 3000000000, age: 58, height: 302, weight: 120, arc: "Archipel Sabaody", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Issho Fujitora", crew: "Marines", fruit: "Paramecia", origin: "Grand Line", bounty: 3000000000, age: 54, height: 270, weight: 135, arc: "Dressrosa", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Trafalgar D. Water Law", crew: "Heart Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 3000000000, age: 26, height: 191, weight: 75, arc: "Archipel Sabaody", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Crocodile", crew: "Cross Guild", fruit: "Logia", origin: "Grand Line", bounty: 1965000000, age: 46, height: 253, weight: 95, arc: "Little Garden", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Brogy", crew: "Giant Warrior Pirates", fruit: "Aucun", origin: "Elbaf", bounty: 1800000000, age: 160, height: 2130, weight: 15000, arc: "Little Garden", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Dorry", crew: "Giant Warrior Pirates", fruit: "Aucun", origin: "Elbaf", bounty: 1800000000, age: 160, height: 2260, weight: 16000, arc: "Little Garden", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Marco", crew: "Barbe Blanche", fruit: "Zoan", origin: "Grand Line", bounty: 1374000000, age: 45, height: 203, weight: 82, arc: "Jaya", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Scien Queen", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 1320000000, age: 56, height: 612, weight: 455, arc: "Wano Country", haki: "👀, 🦾", race: "Cyborg (Humain)", gender: "Homme" },
+        { name: "Jack", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 1000000000, age: 28, height: 830, weight: 620, arc: "Dressrosa", haki: "👀, 🦾", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Charlotte Smoothie", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 932000000, age: 35, height: 464, weight: 130, arc: "Whole Cake Island", haki: "👀, 🦾", race: "Humain (Longue-jambe)", gender: "Femme" },
+        { name: "Charlotte Cracker", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 860000000, age: 45, height: 307, weight: 112, arc: "Whole Cake Island", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Perospero", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 700000000, age: 50, height: 333, weight: 92, arc: "Whole Cake Island", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Snack", crew: "Big Mom Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 600000000, age: 30, height: 250, weight: 110, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Little Oars Jr.", crew: "Allié Barbe Blanche", fruit: "Aucun", origin: "Grand Line", bounty: 550000000, age: 72, height: 6000, weight: 38000, arc: "Marineford", haki: "Aucun", race: "Géant Antique", gender: "Homme" },
+        { name: "Who's Who", crew: "Beasts Pirates", fruit: "Zoan", origin: "North Blue", bounty: 546000000, age: 38, height: 336, weight: 124, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Izou", crew: "Barbe Blanche", fruit: "Aucun", origin: "Wano Country", bounty: 510000000, age: 45, height: 192, weight: 76, arc: "Marineford", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Bluegrass", crew: "Marines", fruit: "Paramecia", origin: "Inconnu", bounty: 500000000, age: 77, height: 160, weight: 52, arc: "Egg Head", haki: "🦾", race: "Humain", gender: "Femme" },
+        { name: "Dalmatien", crew: "Marines", fruit: "Zoan", origin: "Inconnu", bounty: 500000000, age: 48, height: 220, weight: 105, arc: "Marineford", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Doberman", crew: "Marines", fruit: "Aucun", origin: "Inconnu", bounty: 500000000, age: 52, height: 230, weight: 112, arc: "Enies Lobby", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Koby", crew: "Marines", fruit: "Aucun", origin: "East Blue", bounty: 500000000, age: 18, height: 167, weight: 60, arc: "Romance Dawn", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Kujaku", crew: "Marines", fruit: "Paramecia", origin: "North Blue", bounty: 500000000, age: 26, height: 180, weight: 63, arc: "Egg Head", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Momonga", crew: "Marines", fruit: "Aucun", origin: "Grand Line", bounty: 500000000, age: 48, height: 251, weight: 118, arc: "Enies Lobby", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Prince Gles", crew: "Marines", fruit: "Paramecia", origin: "West Blue", bounty: 500000000, age: 29, height: 205, weight: 94, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "RedKing", crew: "Marines", fruit: "Aucun", origin: "Inconnu", bounty: 500000000, age: 50, height: 240, weight: 120, arc: "Egg Head", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Sentomaru", crew: "Marines", fruit: "Aucun", origin: "Grand Line", bounty: 500000000, age: 34, height: 279, weight: 145, arc: "Archipel Sabaody", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Smoker", crew: "Marines", fruit: "Logia", origin: "Grand Line", bounty: 500000000, age: 36, height: 209, weight: 98, arc: "Loguetown", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "T Bone", crew: "Marines", fruit: "Aucun", origin: "Grand Line", bounty: 500000000, age: 51, height: 200, weight: 70, arc: "Water Seven", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Tsuru", crew: "Marines", fruit: "Paramecia", origin: "North Blue", bounty: 500000000, age: 76, height: 204, weight: 68, arc: "Jaya", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Edward Weevil", origin: "Inconnu", fruit: "Aucun", origin: "Grand Line", bounty: 480000000, age: 35, height: 680, weight: 420, arc: "Zou", haki: "👀, 🦾", race: "Humain (Clone?)", gender: "Homme" },
+        { name: "Sasaki", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 472000000, age: 34, height: 318, weight: 135, arc: "Wano Country", haki: "👀, 🦾", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Tamago", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 429000000, age: 46, height: 301, weight: 88, arc: "Île des Hommes-Poissons", haki: "👀, 🦾", race: "Humain (Longue-jambe)", gender: "Homme" },
+        { name: "Karasu", crew: "Revolutionary Army", fruit: "Logia", origin: "North Blue", bounty: 400000000, age: 47, height: 265, weight: 105, arc: "Reverie", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Ulti", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 400000000, age: 22, height: 173, weight: 65, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Pedro", crew: "Mokomo Dukedom", fruit: "Aucun", origin: "Zou", bounty: 382000000, age: 32, height: 233, weight: 102, arc: "Zou", haki: "👀, 🦾", race: "Mink", gender: "Homme" },
+        { name: "Capone Bege", crew: "Fire Tank Pirates", fruit: "Paramecia", origin: "West Blue", bounty: 350000000, age: 42, height: 166, weight: 90, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Scratchmen Apoo", crew: "On Air Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 350000000, age: 29, height: 256, weight: 84, arc: "Archipel Sabaody", haki: "👀, 🦾", race: "Humain (Long-bras)", gender: "Homme" },
+        { name: "Cavendish", crew: "Beautiful Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 330000000, age: 26, height: 208, weight: 85, arc: "Dressrosa", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Pekoms", crew: "Big Mom Pirates", fruit: "Zoan", origin: "Zou", bounty: 330000000, age: 27, height: 232, weight: 110, arc: "Île des Hommes-Poissons", haki: "👀, 🦾", race: "Mink", gender: "Homme" },
+        { name: "Gecko Moria", crew: "Thriller Bark Pirates", fruit: "Paramecia", origin: "West Blue", bounty: 320000000, age: 50, height: 692, weight: 350, arc: "Thriller Bark", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Jewelry Bonney", crew: "Bonney Pirates", fruit: "Paramecia", origin: "Red Line", bounty: 320000000, age: 12, height: 174, weight: 62, arc: "Archipel Sabaody", haki: "🦾", race: "Humain", gender: "Femme" },
+        { name: "Lindbergh", crew: "Revolutionary Army", fruit: "Aucun", origin: "Zou", bounty: 316000000, age: 37, height: 149, weight: 55, arc: "Reverie", haki: "👀, 🦾", race: "Mink", gender: "Homme" },
+        { name: "Caesar Clown", crew: "NEO MADS", fruit: "Logia", origin: "Grand Line", bounty: 300000000, age: 55, height: 309, weight: 94, arc: "Punk Hazard", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Daifuku", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 300000000, age: 48, height: 489, weight: 145, arc: "Whole Cake Island", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Oven", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 300000000, age: 48, height: 492, weight: 152, arc: "Whole Cake Island", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Morley", crew: "Revolutionary Army", fruit: "Paramecia", origin: "West Blue", bounty: 293000000, age: 160, height: 1253, weight: 3500, arc: "Reverie", haki: "👀, 🦾", race: "Géant", gender: "Femme" },
+        { name: "Page One", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 290000000, age: 20, height: 171, weight: 70, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Fisher Tiger", crew: "Sun Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 230000000, age: 48, height: 520, weight: 210, arc: "Amazon Lily", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "X Drake", crew: "Marines", fruit: "Zoan", origin: "North Blue", bounty: 222000000, age: 33, height: 233, weight: 104, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Caribou", crew: "Caribou Pirates", fruit: "Logia", origin: "North Blue", bounty: 210000000, age: 32, height: 228, weight: 92, arc: "Retour à Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Don Sai", crew: "Happo Navy", fruit: "Aucun", origin: "West Blue", bounty: 210000000, age: 28, height: 242, weight: 120, arc: "Dressrosa", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Squard", crew: "Maelstrom Spider Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 210000000, age: 52, height: 228, weight: 98, arc: "Marineford", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Bartolomeo", crew: "Barto Club", fruit: "Paramecia", origin: "East Blue", bounty: 200000000, age: 24, height: 220, weight: 95, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Hina", crew: "Marines", fruit: "Paramecia", origin: "West Blue", bounty: 200000000, age: 34, height: 181, weight: 64, arc: "Alabasta", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Killer", crew: "Kid Pirates", fruit: "SMILE", origin: "South Blue", bounty: 200000000, age: 27, height: 195, weight: 82, arc: "Archipel Sabaody", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Coribou", crew: "Caribou Pirates", fruit: "Aucun", origin: "North Blue", bounty: 190000000, age: 29, height: 250, weight: 130, arc: "Retour à Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Ginny", crew: "Revolutionary Army", fruit: "Aucun", origin: "Grand Line", bounty: 190000000, age: 39, height: 174, weight: 58, arc: "Egg Head", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Orlumbus", crew: "Yonta Maria", fruit: "Aucun", origin: "Grand Line", bounty: 148000000, age: 42, height: 480, weight: 280, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Mont dor", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 120000000, age: 38, height: 260, weight: 75, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Urouge", crew: "Fallen Monk Pirates", fruit: "Paramecia", origin: "Sky Islands", bounty: 108000000, age: 47, height: 388, weight: 240, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain (Birkien)", gender: "Homme" },
+        { name: "Bobbin", crew: "Big Mom Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 105500000, age: 30, height: 180, weight: 90, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Emporio Ivankov", crew: "Revolutionary Army", fruit: "Paramecia", origin: "Grand Line", bounty: 100000000, age: 53, height: 449, weight: 210, arc: "Impel Down", haki: "Aucun", race: "Humain", gender: "Fluide" },
+        { name: "Helmeppo", crew: "Marines", fruit: "Aucun", origin: "East Blue", bounty: 100000000, age: 22, height: 179, weight: 68, arc: "Romance Dawn", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Inazuma", crew: "Revolutionary Army", fruit: "Paramecia", origin: "South Blue", bounty: 100000000, age: 29, height: 228, weight: 78, arc: "Impel Down", haki: "Aucun", race: "Humain", gender: "Fluide" },
+        { name: "Nezumi", crew: "Marines", fruit: "Aucun", origin: "East Blue", bounty: 100000000, age: 36, height: 182, weight: 65, arc: "Arlong Park", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Sharinguru", crew: "Marines", fruit: "Paramecia", origin: "Inconnu", bounty: 100000000, age: 40, height: 190, weight: 85, arc: "Enies Lobby", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Shu", crew: "Marines", fruit: "Paramecia", origin: "Inconnu", bounty: 100000000, age: 35, height: 185, weight: 78, arc: "Enies Lobby", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Tashigi", crew: "Marines", fruit: "Aucun", origin: "East Blue", bounty: 100000000, age: 23, height: 170, weight: 55, arc: "Loguetown", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Very Good", crew: "Marines", fruit: "Paramecia", origin: "Inconnu", bounty: 100000000, age: 38, height: 180, weight: 80, arc: "Enies Lobby", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Diamante", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 99000000, age: 45, height: 525, weight: 160, arc: "Dressrosa", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Pica", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 99000000, age: 40, height: 470, weight: 250, arc: "Dressrosa", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Trebol", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 99000000, age: 49, height: 349, weight: 95, arc: "Dressrosa", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Rockstar", crew: "Red Hair Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 94000000, age: 35, height: 190, weight: 80, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Barbe Brune", crew: "Allié Caesar", fruit: "Aucun", origin: "Grand Line", bounty: 80060000, age: 45, height: 691, weight: 410, arc: "Marineford", haki: "Aucun", race: "Cyborg (Humain)", gender: "Homme" },
+        { name: "Nico Olvia", crew: "Archéologues", fruit: "Aucun", origin: "West Blue", bounty: 79000000, age: 33, height: 186, weight: 60, arc: "Enies Lobby", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Daz Bonez", crew: "Cross Guild", fruit: "Paramecia", origin: "West Blue", bounty: 75000000, age: 31, height: 212, weight: 105, arc: "Alabasta", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Doc Q", crew: "Blackbeard Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 72000000, age: 28, height: 342, weight: 95, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+		{ name: "Van Augur", crew: "Blackbeard Pirates", fruit: "Paramecia", origin: "East Blue", bounty: 64000000, age: 27, height: 340, weight: 88, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Lao G", crew: "Donquixote Pirates", fruit: "Aucun", origin: "North Blue", bounty: 61000000, age: 70, height: 157, weight: 58, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Devil Dias", crew: "Acumate Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 60000000, age: 32, height: 190, weight: 85, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Señor Pink", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 58000000, age: 46, height: 244, weight: 145, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Laffitte", crew: "Blackbeard Pirates", fruit: "Zoan", origin: "West Blue", bounty: 42200000, age: 41, height: 340, weight: 85, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Boa Marigold", crew: "Kuja", fruit: "Zoan", origin: "Calm Belt", bounty: 40000000, age: 28, height: 432, weight: 320, arc: "Amazon Lily", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Boa Sandersonia", crew: "Kuja", fruit: "Zoan", origin: "Calm Belt", bounty: 40000000, age: 30, height: 453, weight: 210, arc: "Amazon Lily", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Sarquiss", crew: "Bellamy Pirates", fruit: "Aucun", origin: "North Blue", bounty: 38000000, age: 27, height: 228, weight: 95, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Shoujou", crew: "Saruyama Alliance", fruit: "Aucun", origin: "South Blue", bounty: 36000000, age: 25, height: 351, weight: 190, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Zala Doublefinger", crew: "Baroque Works", fruit: "Paramecia", origin: "Grand Line", bounty: 35000000, age: 28, height: 187, weight: 62, arc: "Alabasta", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Bentham Bon Clay", crew: "Newkama Land", fruit: "Paramecia", origin: "East Blue", bounty: 32000000, age: 32, height: 238, weight: 85, arc: "Little Garden", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Gladius", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 31000000, age: 33, height: 260, weight: 88, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Marianne Goldenweek", crew: "Baroque Works", fruit: "Aucun", origin: "North Blue", bounty: 29000000, age: 18, height: 145, weight: 45, arc: "Little Garden", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Demalo Black", crew: "Fake Straw Hat", fruit: "Aucun", origin: "East Blue", bounty: 26000000, age: 36, height: 245, weight: 140, arc: "Retour à Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Mont Blanc Cricket", crew: "Saruyama Alliance", fruit: "Aucun", origin: "North Blue", bounty: 25000000, age: 43, height: 242, weight: 110, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Lola", crew: "Rolling Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 24000000, age: 26, height: 215, weight: 125, arc: "Thriller Bark", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Foxy", crew: "Foxy Pirates", fruit: "Paramecia", origin: "South Blue", bounty: 24000000, age: 38, height: 180, weight: 84, arc: "Long Ring Long Land", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Galdino Mr. 3", crew: "Cross Guild", fruit: "Paramecia", origin: "South Blue", bounty: 24000000, age: 37, height: 179, weight: 65, arc: "Little Garden", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Masira", crew: "Saruyama Alliance", fruit: "Aucun", origin: "North Blue", bounty: 23000000, age: 25, height: 345, weight: 185, arc: "Jaya", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Arlong", crew: "Arlong Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 20000000, age: 41, height: 263, weight: 135, arc: "Arlong Park", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Jesus Burgess", crew: "Blackbeard Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 20000000, age: 29, height: 355, weight: 260, arc: "Jaya", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Don Krieg", crew: "Krieg Pirates", fruit: "Aucun", origin: "East Blue", bounty: 17000000, age: 44, height: 243, weight: 120, arc: "Baratie", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Lacuba", origin: "Inconnu", fruit: "Aucun", origin: "Grand Line", bounty: 17000000, age: 35, height: 190, weight: 85, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kuro", crew: "Black Cat Pirates", fruit: "Aucun", origin: "East Blue", bounty: 16000000, age: 35, height: 207, weight: 75, arc: "Syrup Village", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Dellinger", crew: "Donquixote Pirates", fruit: "Aucun", origin: "North Blue", bounty: 15000000, age: 16, height: 145, weight: 52, arc: "Dressrosa", haki: "Aucun", race: "Hybride (H-Poisson)", gender: "Homme" },
+        { name: "Bluejam", crew: "Bluejam Pirates", fruit: "Aucun", origin: "East Blue", bounty: 14300000, age: 42, height: 261, weight: 115, arc: "Marineford", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Drophy Miss Merry Christmas", crew: "Baroque Works", fruit: "Zoan", origin: "Grand Line", bounty: 14000000, age: 51, height: 156, weight: 68, arc: "Alabasta", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Gin", crew: "Krieg Pirates", fruit: "Aucun", origin: "East Blue", bounty: 12000000, age: 27, height: 186, weight: 78, arc: "Baratie", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Machvise", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 11000000, age: 52, height: 440, weight: 350, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Gem Mr. 5", crew: "Baroque Works", fruit: "Paramecia", origin: "South Blue", bounty: 10000000, age: 26, height: 197, weight: 88, arc: "Whisky Peak", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kuroobi", crew: "Arlong Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 9000000, age: 38, height: 252, weight: 110, arc: "Arlong Park", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Hatchan Octy", crew: "Takoyaki 8", fruit: "Aucun", origin: "Grand Line", bounty: 8000000, age: 38, height: 220, weight: 102, arc: "Arlong Park", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Higuma", crew: "Brigands", fruit: "Aucun", origin: "East Blue", bounty: 8000000, age: 46, height: 190, weight: 84, arc: "Romance Dawn", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Curly Dadan", crew: "Dadan Family", fruit: "Aucun", origin: "East Blue", bounty: 7800000, age: 55, height: 221, weight: 120, arc: "Marineford", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Mikita Valentine", crew: "Baroque Works", fruit: "Paramecia", origin: "West Blue", bounty: 7500000, age: 24, height: 177, weight: 54, arc: "Whisky Peak", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Alvida", crew: "Cross Guild", fruit: "Paramecia", origin: "East Blue", bounty: 5000000, age: 27, height: 198, weight: 72, arc: "Romance Dawn", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Babe Mr. 4", crew: "Baroque Works", fruit: "Aucun", origin: "Grand Line", bounty: 3200000, age: 30, height: 218, weight: 160, arc: "Alabasta", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Bepo", crew: "Heart Pirates", fruit: "Aucun", origin: "Zou", bounty: 1500, age: 22, height: 240, weight: 140, arc: "Archipel Sabaody", haki: "Aucun", race: "Mink", gender: "Homme" },
+        { name: "Abdullah", crew: "Ideo Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 35, height: 220, weight: 105, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Absalom", crew: "Thriller Bark Pirates", fruit: "Paramecia", origin: "West Blue", bounty: 0, age: 34, height: 195, weight: 98, arc: "Thriller Bark", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Zunesha", origin: "Inconnu", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 1000, height: 3500000, weight: 900000000, arc: "Zou", haki: "Aucun", race: "Animal (Naitamie-Norida)", gender: "Aucun" },        { name: "Jarul", crew: "Giant Warrior Pirates", fruit: "Aucun", origin: "Elbaf", bounty: 0, age: 408, height: 2050, weight: 12000, arc: "Whole Cake Island", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Nola", origin: "Inconnu", fruit: "Aucun", origin: "Skypeia", bounty: 0, age: 400, height: 20000, weight: 500000, arc: "Skypeia", haki: "Aucun", race: "Serpent Géant", gender: "Aucun" },
+        { name: "Jorul", crew: "Giant Warrior Pirates", fruit: "Aucun", origin: "Elbaf", bounty: 0, age: 344, height: 2150, weight: 13000, arc: "Whole Cake Island", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Oars", crew: "Thriller Bark Pirates", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 159, height: 6700, weight: 45000, arc: "Thriller Bark", haki: "Aucun", race: "Géant Antique", gender: "Homme" },
+        { name: "Kureha", crew: "Royaume de Sakura", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 141, height: 188, weight: 55, arc: "Drum Island", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Jaguar D. Saul", crew: "Marines", fruit: "Aucun", origin: "South Blue", bounty: 0, age: 127, height: 1950, weight: 11000, arc: "Enies Lobby", haki: "🦾", race: "Géant", gender: "Homme" },
+        { name: "Surume", origin: "Inconnu", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 120, height: 30000, weight: 800000, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Kraken", gender: "Homme" },
+        { name: "Sanjuan Wolf", crew: "Blackbeard Pirates", fruit: "Paramecia", origin: "West Blue", bounty: 0, age: 99, height: 18000, weight: 400000, arc: "Marineford", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Streusen", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 92, height: 140, weight: 62, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Haredas", origin: "Inconnu", fruit: "Aucun", origin: "Sky Islands", bounty: 0, age: 97, height: 253, weight: 70, arc: "Amazon Lily", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Clou D. Clover", crew: "Archéologues", fruit: "Aucun", origin: "West Blue", bounty: 0, age: 85, height: 172, weight: 65, arc: "Enies Lobby", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kouzuki Sukiyaki", crew: "Kouzuki Family", fruit: "Aucun", origin: "Wano Country", bounty: 0, age: 81, height: 214, weight: 85, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Benn Beckman", crew: "Red Hair Pirates", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 50, height: 206, weight: 95, arc: "Romance Dawn", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Lucky Roux", crew: "Red Hair Pirates", fruit: "Aucun", origin: "South Blue", bounty: 0, age: 35, height: 241, weight: 120, arc: "Romance Dawn", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Makino", crew: "Partys Bar", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 31, height: 166, weight: 52, arc: "Romance Dawn", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Yasopp", crew: "Red Hair Pirates", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 47, height: 183, weight: 75, arc: "Romance Dawn", haki: "👀", race: "Humain", gender: "Homme" },
+        { name: "Morgan", crew: "Marines", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 44, height: 285, weight: 135, arc: "Romance Dawn", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Shimotsuki Kuina", crew: "Shimotsuki Family", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 11, height: 150, weight: 40, arc: "Romance Dawn", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Richie", crew: "Buggy Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 10, height: 300, weight: 450, arc: "Orange Town", haki: "Aucun", race: "Lion", gender: "Homme" },
+        { name: "Chouchou", crew: "Hocker", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 14, height: 40, weight: 10, arc: "Orange Town", haki: "Aucun", race: "Chien", gender: "Homme" },
+        { name: "Gaimon", origin: "Inconnu", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 45, height: 130, weight: 60, arc: "Syrup Village", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kaya", origin: "Inconnu", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 19, height: 169, weight: 50, arc: "Syrup Village", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Merry", origin: "Inconnu", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 40, height: 175, weight: 70, arc: "Syrup Village", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Johnny", crew: "Yosaku", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 25, height: 186, weight: 78, arc: "Baratie", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Yosaku", crew: "Johnny", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 26, height: 185, weight: 79, arc: "Baratie", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Zeff", crew: "Baratie", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 67, height: 189, weight: 85, arc: "Baratie", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Nojiko", crew: "Nojiko's mikan farm", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 22, height: 170, weight: 56, arc: "Arlong Park", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Genzo", crew: "Cocoyasi Village", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 48, height: 173, weight: 72, arc: "Arlong Park", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Momoo", crew: "Arlong Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 16, height: 3600, weight: 5000, arc: "Arlong Park", haki: "Aucun", race: "Monstre Marin", gender: "Homme" },
+        { name: "Bell-mère", crew: "Marines", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 30, height: 186, weight: 65, arc: "Arlong Park", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Monkey D. Dragon", crew: "Revolutionary Army", fruit: "Aucun", origin: "East Blue", bounty: 0, age: 55, height: 256, weight: 90, arc: "Loguetown", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Crocus", crew: "Roger Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 73, height: 203, weight: 82, arc: "Reverse Mountain", haki: "👀", race: "Humain", gender: "Homme" },
+        { name: "Laboon", crew: "Crocus", fruit: "Aucun", origin: "West Blue", bounty: 0, age: 53, height: 40000, weight: 99999, arc: "Reverse Mountain", haki: "Aucun", race: "Baleine", gender: "Homme" },
+        { name: "Mr. 9", crew: "Baroque Works", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 25, height: 185, weight: 78, arc: "Reverse Mountain", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Nefertari Vivi", crew: "Alabasta Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 18, height: 169, weight: 52, arc: "Reverse Mountain", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Miss Friday", crew: "Baroque Works", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 10, height: 200, weight: 80, arc: "Reverse Mountain", haki: "Aucun", race: "Vautour", gender: "Femme" },
+        { name: "Mr. 13", crew: "Baroque Works", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 10, height: 60, weight: 15, arc: "Reverse Mountain", haki: "Aucun", race: "Loutre", gender: "Homme" },
+        { name: "Igaram", crew: "Alabasta Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 50, height: 218, weight: 110, arc: "Whiskey Peak", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Miss Monday", crew: "Baroque Works", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 28, height: 210, weight: 105, arc: "Whiskey Peak", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Karoo", crew: "Alabasta Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 16, height: 150, weight: 45, arc: "Whiskey Peak", haki: "Aucun", race: "Super Canard", gender: "Homme" },
+        { name: "Wapol", crew: "Drum Kingdom", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 29, height: 207, weight: 140, arc: "Drum Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Dalton", crew: "Sakura Kingdom", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 35, height: 218, weight: 120, arc: "Drum Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Hiluluk", origin: "Inconnu", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 68, height: 213, weight: 75, arc: "Drum Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Nefertari Cobra", crew: "Alabasta Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 50, height: 182, weight: 70, arc: "Drum Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Chaka", crew: "Alabasta Kingdom", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 41, height: 213, weight: 85, arc: "Alabasta", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Pell", crew: "Alabasta Kingdom", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 35, height: 189, weight: 80, arc: "Alabasta", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Lassou", crew: "Baroque Works", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 5, height: 120, weight: 30, arc: "Alabasta", haki: "Aucun", race: "Objet (Fusil)", gender: "Homme" },
+        { name: "Camie", crew: "Mermaid Café", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 18, height: 197, weight: 58, arc: "Alabasta", haki: "Aucun", race: "Sirène", gender: "Femme" },
+        { name: "Pappag", crew: "Criminal", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 33, height: 50, weight: 5, arc: "Alabasta", haki: "Aucun", race: "Étoile de mer", gender: "Homme" },
+        { name: "Shepherd Ju Peter", crew: "Five Elders", fruit: "Zoan", origin: "Inconnu", bounty: 0, age: 800, height: 230, weight: 95, arc: "Jaya", haki: "👀", race: "Aucun", gender: "Homme" },
+        { name: "Jozu", crew: "Whitebeard Pirates", fruit: "Paramecia", origin: "West Blue", bounty: 0, age: 42, height: 503, weight: 450, arc: "Jaya", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Wyper", crew: "God's Guards", fruit: "Aucun", origin: "Skypeia", bounty: 0, age: 24, height: 183, weight: 82, arc: "Skypeia", haki: "Aucun", race: "Shandia", gender: "Homme" },
+        { name: "Enel", crew: "Automata", fruit: "Logia", origin: "Birka", bounty: 0, age: 39, height: 266, weight: 88, arc: "Skypeia", haki: "👀", race: "Birkan", gender: "Homme" },
+        { name: "Gan Forr", crew: "Skypeia", fruit: "Aucun", origin: "Skypeia", bounty: 0, age: 68, height: 180, weight: 74, arc: "Skypeia", haki: "Aucun", race: "Humain (Skypeian)", gender: "Homme" },
+        { name: "Kalgara", crew: "Shandia", fruit: "Aucun", origin: "Jaya", bounty: 0, age: 39, height: 222, weight: 95, arc: "Skypeia", haki: "👀", race: "Shandia", gender: "Homme" },
+        { name: "Mont Blanc Noland", crew: "Lvneel Kingdom", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 39, height: 220, weight: 92, arc: "Skypeia", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kuzan Aokiji", crew: "Blackbeard Pirates", fruit: "Logia", origin: "South Blue", bounty: 0, age: 49, height: 298, weight: 110, arc: "Long Ring Long Land", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Chimney", crew: "Kokoro", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 10, height: 115, weight: 32, arc: "Water Seven", haki: "Aucun", race: "Humain (1/4 Sirène)", gender: "Femme" },
+        { name: "Kokoro", crew: "Tom's Workers", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 72, height: 168, weight: 115, arc: "Water Seven", haki: "Aucun", race: "Sirène", gender: "Femme" },
+        { name: "Yokozuna", crew: "Tom's Workers", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 20, height: 250, weight: 800, arc: "Water Seven", haki: "Aucun", race: "Grenouille", gender: "Homme" },
+        { name: "Icebarg", crew: "Galley-La Company", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 41, height: 199, weight: 88, arc: "Water Seven", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kaku", crew: "CP0", fruit: "Zoan", origin: "East Blue", bounty: 0, age: 25, height: 193, weight: 80, arc: "Water Seven", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Kalifa", crew: "CP0", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 27, height: 185, weight: 62, arc: "Water Seven", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Paulie", crew: "Galley-La Company", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 26, height: 195, weight: 84, arc: "Water Seven", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Rob Lucci", crew: "CP0", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 30, height: 212, weight: 92, arc: "Water Seven", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Tom", crew: "Tom's Workers", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 67, height: 296, weight: 280, arc: "Water Seven", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Spandam", crew: "CP0", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 41, height: 192, weight: 82, arc: "Water Seven", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Fukuro", crew: "CP0", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 31, height: 331, weight: 220, arc: "Enies Lobby", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Jabra", crew: "CP0", fruit: "Zoan", origin: "North Blue", bounty: 0, age: 37, height: 212, weight: 94, arc: "Enies Lobby", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Kumadori", crew: "CP0", fruit: "Aucun", origin: "South Blue", bounty: 0, age: 36, height: 338, weight: 190, arc: "Enies Lobby", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Thatch", crew: "Whitebeard Pirates", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 35, height: 195, weight: 88, arc: "Enies Lobby", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Perona", crew: "Thriller Bark Pirates", fruit: "Paramecia", origin: "West Blue", bounty: 0, age: 25, height: 160, weight: 48, arc: "Thriller Bark", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Hogback", crew: "Thriller Bark Pirates", fruit: "Aucun", origin: "West Blue", bounty: 0, age: 47, height: 223, weight: 110, arc: "Thriller Bark", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Ganzui", crew: "Thriller Bark Pirates", fruit: "Paramecia", origin: "Inconnu", bounty: 0, age: 50, height: 200, weight: 90, arc: "Thriller Bark", haki: "Aucun", race: "Zombie", gender: "Homme" },
+        { name: "John", crew: "Thriller Bark Pirates", fruit: "Paramecia", origin: "Inconnu", bounty: 0, age: 50, height: 200, weight: 90, arc: "Thriller Bark", haki: "Aucun", race: "Zombie", gender: "Homme" },
+        { name: "Gill Bastar", crew: "Thriller Bark Pirates", fruit: "Paramecia", origin: "Inconnu", bounty: 0, age: 50, height: 200, weight: 90, arc: "Thriller Bark", haki: "Aucun", race: "Zombie", gender: "Homme" },
+        { name: "Duval", crew: "Rosy Life Riders", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 25, height: 470, weight: 350, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Rosward Rosward", crew: "World Government", fruit: "Aucun", origin: "Red Line", bounty: 0, age: 55, height: 215, weight: 82, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Shakuyaku Shakky", crew: "Rip-off Bar", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 64, height: 186, weight: 60, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Rosward Charlos", crew: "World Government", fruit: "Aucun", origin: "Red Line", bounty: 0, age: 24, height: 230, weight: 85, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Disco", crew: "Donquixote Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 40, height: 185, weight: 75, arc: "Archipel Sabaody", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Stansen", crew: "New Giant Warrior Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 81, height: 1950, weight: 9999, arc: "Archipel Sabaody", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Gloriosa", crew: "Kuja", fruit: "Aucun", origin: "Calm Belt", bounty: 0, age: 80, height: 120, weight: 35, arc: "Amazon Lily", haki: "🦾", race: "Humain", gender: "Femme" },
+        { name: "Heracles", origin: "Inconnu", fruit: "Aucun", origin: "South Blue", bounty: 0, age: 51, height: 214, weight: 98, arc: "Amazon Lily", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Hannyabal", crew: "Impel Down", fruit: "Aucun", origin: "South Blue", bounty: 0, age: 35, height: 309, weight: 145, arc: "Impel Down", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Magellan", crew: "Impel Down", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 47, height: 491, weight: 320, arc: "Impel Down", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Sadi", crew: "Impel Down", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 23, height: 183, weight: 60, arc: "Impel Down", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Shiryu", crew: "Blackbeard Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 44, height: 340, weight: 155, arc: "Impel Down", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Portgas D. Rouge", origin: "Inconnu", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 20, height: 168, weight: 54, arc: "Marineford", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Namur", crew: "Whitebeard Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 33, height: 240, weight: 160, arc: "Marineford", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Vista", crew: "Whitebeard Pirates", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 47, height: 328, weight: 210, arc: "Marineford", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Avalo Pizarro", crew: "Blackbeard Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 0, age: 42, height: 505, weight: 380, arc: "Marineford", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Catarina Devon", crew: "Blackbeard Pirates", fruit: "Zoan", origin: "South Blue", bounty: 0, age: 36, height: 361, weight: 120, arc: "Marineford", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Vasco Shot", crew: "Blackbeard Pirates", fruit: "Paramecia", origin: "South Blue", bounty: 0, age: 38, height: 573, weight: 420, arc: "Marineford", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Sabo", crew: "Revolutionary Army", fruit: "Logia", origin: "East Blue", bounty: 0, age: 22, height: 187, weight: 75, arc: "Post-War", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Vander Decken IX", crew: "Flying Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 35, height: 352, weight: 195, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Hody Jones", crew: "New Fish-Man Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 30, height: 331, weight: 210, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Ishilly", crew: "Mermaid Café", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 21, height: 180, weight: 55, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Sirène", gender: "Femme" },
+        { name: "Fukaboshi", crew: "Ryugu Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 24, height: 604, weight: 450, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Sirène", gender: "Homme" },
+        { name: "Manboshi", crew: "Ryugu Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 20, height: 473, weight: 380, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Sirène", gender: "Homme" },
+        { name: "Shyarly", crew: "Mermaid Café", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 29, height: 520, weight: 290, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Sirène", gender: "Femme" },
+        { name: "Ryuboshi", crew: "Ryugu Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 23, height: 544, weight: 410, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Sirène", gender: "Homme" },
+        { name: "Neptune", crew: "Ryugu Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 70, height: 1220, weight: 1500, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Sirène", gender: "Homme" },
+        { name: "Shirahoshi", crew: "Ryugu Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 16, height: 1187, weight: 1200, arc: "Île des Hommes-Poissons", haki: "👀", race: "Sirène", gender: "Femme" },
+        { name: "Otohime", crew: "Ryugu Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 36, height: 224, weight: 65, arc: "Île des Hommes-Poissons", haki: "👀", race: "Sirène", gender: "Femme" },
+        { name: "Koala", crew: "Revolutionary Army", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 23, height: 160, weight: 51, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Donquixote Mjosgard", crew: "World Government", fruit: "Aucun", origin: "Red Line", bounty: 0, age: 35, height: 211, weight: 88, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Pudding", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 16, height: 166, weight: 52, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Hybride (Tribu 3 Yeux)", gender: "Femme" },
+        { name: "Napoleon", crew: "Big Mom Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 38, height: 848, weight: 500, arc: "Île des Hommes-Poissons", haki: "Aucun", race: "Objet (Homie)", gender: "Homme" },
+        { name: "Kinemon", crew: "Kouzuki Family", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 36, height: 295, weight: 110, arc: "Punk Hazard", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+		{ name: "Monet", crew: "Donquixote Pirates", fruit: "Logia", origin: "North Blue", bounty: 0, age: 30, height: 227, weight: 68, arc: "Punk Hazard", haki: "Aucun", race: "Humaine (Harpie)", gender: "Femme" },
+        { name: "Vergo", crew: "Donquixote Pirates", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 41, height: 247, weight: 95, arc: "Punk Hazard", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Baby 5", crew: "Happo Navy", fruit: "Paramecia", origin: "North Blue", bounty: 0, age: 24, height: 181, weight: 58, arc: "Punk Hazard", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Giolla", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 0, age: 61, height: 221, weight: 130, arc: "Punk Hazard", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Sugar", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 0, age: 22, height: 110, weight: 25, arc: "Punk Hazard", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Kouzuki Momonosuke", crew: "Kouzuki Family", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 8, height: 110, weight: 28, arc: "Punk Hazard", haki: "👀", race: "Humain", gender: "Homme" },
+        { name: "Buffalo", crew: "Donquixote Pirates", fruit: "Paramecia", origin: "North Blue", bounty: 0, age: 30, height: 696, weight: 520, arc: "Punk Hazard", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kurozumi Kanjuro", crew: "Kurozumi Family", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 34, height: 347, weight: 180, arc: "Dressrosa", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Kyros", crew: "Dressrosa Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 44, height: 298, weight: 135, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Viola", crew: "Dressrosa Kingdom", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 29, height: 178, weight: 56, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Rebecca", crew: "Dressrosa Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 16, height: 171, weight: 54, arc: "Dressrosa", haki: "👀", race: "Humain", gender: "Femme" },
+        { name: "Joseph", crew: "CP0", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 38, height: 210, weight: 90, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Hajrudin", crew: "New Giant Warrior Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 81, height: 2200, weight: 9999, arc: "Dressrosa", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Hack", crew: "Revolutionary Army", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 38, height: 280, weight: 220, arc: "Dressrosa", haki: "Aucun", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Riku Doldo III", crew: "Dressrosa Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 60, height: 261, weight: 115, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Leo", crew: "Tontatta Kingdom", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 25, height: 23, weight: 1, arc: "Dressrosa", haki: "Aucun", race: "Nain", gender: "Homme" },
+        { name: "Mansherry", crew: "Tontatta Kingdom", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 25, height: 20, weight: 1, arc: "Dressrosa", haki: "Aucun", race: "Nain", gender: "Femme" },
+        { name: "Donquixote Homing", origin: "Inconnu", fruit: "Aucun", origin: "Red Line", bounty: 0, age: 45, height: 190, weight: 78, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Donquixote Rosinante", crew: "Marines", fruit: "Paramecia", origin: "Red Line", bounty: 0, age: 26, height: 293, weight: 110, arc: "Dressrosa", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Buckingham Stussy", crew: "Rocks Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 76, height: 68, weight: 18, arc: "Zou", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Carrot", crew: "Mokomo Dukedom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 15, height: 161, weight: 48, arc: "Zou", haki: "Aucun", race: "Mink (Lapin)", gender: "Femme" },
+        { name: "Wanda", crew: "Mokomo Dukedom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 28, height: 181, weight: 62, arc: "Zou", haki: "Aucun", race: "Mink", gender: "Femme" },
+        { name: "Inuarashi", crew: "Mokomo Dukedom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 40, height: 511, weight: 450, arc: "Zou", haki: "👀, 🦾", race: "Mink", gender: "Homme" },
+        { name: "Nekomamushi", crew: "Mokomo Dukedom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 40, height: 522, weight: 510, arc: "Zou", haki: "👀, 🦾", race: "Mink", gender: "Homme" },
+        { name: "Shishilian", crew: "Mokomo Dukedom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 34, height: 196, weight: 95, arc: "Zou", haki: "Aucun", race: "Mink", gender: "Homme" },
+        { name: "Vito", crew: "Fire Tank Pirates", fruit: "Aucun", origin: "West Blue", bounty: 95000000, age: 36, height: 242, weight: 105, arc: "Zou", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Raizo", crew: "Kouzuki Family", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 35, height: 311, weight: 160, arc: "Zou", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Charlotte Chiffon", crew: "Fire Tank Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 26, height: 215, weight: 110, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Vinsmoke Yonji", crew: "Germa Kingdom", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 21, height: 194, weight: 85, arc: "Whole Cake Island", haki: "Aucun", race: "Humain (Modifié)", gender: "Homme" },
+        { name: "Vinsmoke Reiju", crew: "Germa Kingdom", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 24, height: 173, weight: 58, arc: "Whole Cake Island", haki: "Aucun", race: "Humain (Modifié)", gender: "Femme" },
+        { name: "Prometheus", crew: "Big Mom Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 0, height: 239, weight: 0, arc: "Whole Cake Island", haki: "Aucun", race: "Homie", gender: "Homme" },
+        { name: "Vinsmoke Ichiji", crew: "Germa Kingdom", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 21, height: 186, weight: 80, arc: "Whole Cake Island", haki: "Aucun", race: "Humain (Modifié)", gender: "Homme" },
+        { name: "Vinsmoke Niji", crew: "Germa Kingdom", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 21, height: 185, weight: 79, arc: "Whole Cake Island", haki: "Aucun", race: "Humain (Modifié)", gender: "Homme" },
+        { name: "Charlotte Praline", crew: "Sun Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 29, height: 800, weight: 650, arc: "Whole Cake Island", haki: "Aucun", race: "Sirène", gender: "Femme" },
+        { name: "Charlotte Brûlée", crew: "Big Mom Pirates", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 43, height: 350, weight: 120, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Pound", crew: "Charlotte Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 48, height: 731, weight: 480, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Vinsmoke Judge", crew: "Germa Kingdom", fruit: "Aucun", origin: "North Blue", bounty: 0, age: 56, height: 272, weight: 135, arc: "Whole Cake Island", haki: "🦾", race: "Humain", gender: "Homme" },
+        { name: "Zepo", crew: "Nox Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 30, height: 200, weight: 110, arc: "Whole Cake Island", haki: "Aucun", race: "Mink (Ours)", gender: "Homme" },
+        { name: "Du Feld", crew: "Underworld", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 55, height: 195, weight: 92, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Morgans", crew: "Underworld", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 53, height: 305, weight: 140, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Carmel", crew: "Underworld", fruit: "Paramecia", origin: "West Blue", bounty: 0, age: 80, height: 185, weight: 65, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Gerd", crew: "New Giant Warrior Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 75, height: 1700, weight: 8500, arc: "Whole Cake Island", haki: "Aucun", race: "Géant", gender: "Femme" },
+        { name: "Charlotte Flampe", crew: "Big Mom Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 15, height: 170, weight: 54, arc: "Whole Cake Island", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Road", crew: "New Giant Warrior Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 63, height: 2600, weight: 9999, arc: "Whole Cake Island", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Goldberg", crew: "New Giant Warrior Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 63, height: 2100, weight: 9999, arc: "Whole Cake Island", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Figarland Shamrock", crew: "Knights of God", fruit: "Aucun", origin: "West Blue", bounty: 0, age: 39, height: 190, weight: 85, arc: "Reverie", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kouzuki Hiyori", crew: "Kouzuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 26, height: 170, weight: 52, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Kurozumi Tama", crew: "Kurozumi Family", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 8, height: 108, weight: 26, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Speed", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 24, height: 298, weight: 195, arc: "Wano Country", haki: "Aucun", race: "Humaine", gender: "Femme" },
+        { name: "Denjiro", crew: "Kouzuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 47, height: 306, weight: 145, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Tsurujo", origin: "Inconnu", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 55, height: 191, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Kikunojo", crew: "Kouzuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 22, height: 287, weight: 0, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Gazelleman", crew: "Beasts Pirates", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 0, height: 255, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kawamatsu", crew: "Kouzuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 41, height: 271, weight: 0, arc: "Wano Country", haki: "👀, 🦾", race: "Homme-Poisson", gender: "Homme" },
+        { name: "Shinobu", crew: "Kouzuki Family", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 49, height: 180, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Hyougoro", crew: "Hyougoro Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 70, height: 100, weight: 0, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Kurozumi Orochi", crew: "Kurozumi Family", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 54, height: 350, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Toko", crew: "Shimotsuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 6, height: 89, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Shimotsuki Yasuie", crew: "Shimotsuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 71, height: 155, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Fukurokuju", crew: "Kurozumi Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 61, height: 221, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Sarutobi", crew: "Beasts Pirates", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 45, height: 378, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Onimaru", crew: "Shimotsuki Family", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 69, height: 428, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Animal", gender: "Homme" },
+        { name: "Shimotsuki Ushimaru", crew: "Shimotsuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 50, height: 298, weight: 0, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Urbain", origin: "Inconnu", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 60, height: 1200, weight: 1200, arc: "Wano Country", haki: "Aucun", race: "Géant", gender: "Homme" },
+        { name: "Kurozumi Higurashi", crew: "Kurozumi Family", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 85, height: 193, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Kujaku", crew: "Marine (SWORD)", fruit: "Paramecia", origin: "North Blue", bounty: 500000000, age: 26, height: 180, weight: 0, arc: "Wano Country", haki: "👀, 🦾", race: "Humain", gender: "Femme" },
+        { name: "Prince Gles", crew: "Marine (SWORD)", fruit: "Paramecia", origin: "West Blue", bounty: 500000000, age: 29, height: 205, weight: 0, arc: "Egg Head", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Mr. Momora", crew: "Roger Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 0, height: 240, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+            { name: "Shimotsuki Kouzaburou", crew: "Shimotsuki Family", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 68, height: 221, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Homme" },
+            { name: "Uta", crew: "Red Hair Pirates", fruit: "Paramecia", origin: "Inconnu", bounty: 0, age: 21, height: 169, weight: 0, arc: "Wano Country", haki: "Aucun", race: "Humain", gender: "Femme" },
+            { name: "Lilith", crew: "Marines (SSG)", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 2, height: 204, weight: 0, arc: "Egg Head", haki: "Aucun", race: "Satellites", gender: "Femme" },
+            { name: "Shaka", crew: "Marines (SSG)", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 2, height: 220, weight: 0, arc: "Egg Head", haki: "Aucun", race: "Satellites", gender: "Homme" },
+		{ name: "Emet", origin: "Inconnu", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 900, height: 2500, weight: 15000, arc: "Egg Head", haki: "Aucun", race: "Robot", gender: "Aucun" },
+		{ name: "York", crew: "Marines (SSG)", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 2, height: 482, weight: 120, arc: "Egg Head", haki: "Aucun", race: "Satellites", gender: "Femme" },
+		{ name: "Vegapunk", crew: "MADS", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 65, height: 314, weight: 68, arc: "Egg Head", haki: "Aucun", race: "Humain", gender: "Homme" },
+		{ name: "Colon", origin: "Inconnu", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 20, height: 550, weight: 800, arc: "Egg Head", haki: "Aucun", race: "Hybride Géant", gender: "Homme" },
+		{ name: "Nefertari D. Lili", crew: "Alabasta Kingdom", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 800, height: 165, weight: 52, arc: "Egg Head", haki: "Aucun", race: "Humain", gender: "Femme" },
+		{ name: "Figarland Garling", crew: "Five Elders", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 75, height: 210, weight: 95, arc: "Egg Head", haki: "👀, 🦾", race: "Humain", gender: "Homme" },
+        { name: "Shuri Gunko", crew: "Knights of God", fruit: "Paramecia", origin: "West Blue", bounty: 0, age: 80, height: 160, weight: 48, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Rimoshifu Killingham", crew: "Knights of God", fruit: "Zoan", origin: "Grand Line", bounty: 0, age: 45, height: 250, weight: 120, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Shepherd Sommers", crew: "Knights of God", fruit: "Paramecia", origin: "Grand Line", bounty: 0, age: 38, height: 188, weight: 82, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Marlon", crew: "Rocks Pirates", fruit: "Aucun", origin: "West Blue", bounty: 0, age: 68, height: 195, weight: 90, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Ochoku", crew: "Rocks Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 72, height: 350, weight: 280, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Kyo Hache d Argent", crew: "Rocks Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 70, height: 280, weight: 190, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Eris", crew: "Davy Family", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 24, height: 172, weight: 58, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Satchels Maffey", crew: "Knights of God", fruit: "Aucun", origin: "Grand Line", bounty: 0, age: 33, height: 178, weight: 62, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Femme" },
+        { name: "Polo Gram", crew: "Whitebeard Pirates", fruit: "Aucun", origin: "Inconnu", bounty: 0, age: 55, height: 205, weight: 105, arc: "Elbaf", haki: "Aucun", race: "Humain", gender: "Homme" },
+        { name: "Blueno", crew: "CP0", fruit: "Paramecia", origin: "North Blue", bounty: 0, age: 32, height: 258, weight: 110, arc: "Water Seven", haki: "👀, 🦾", race: "Humain", gender: "Homme" }
+        ],
+        fruit: [
+            { name: "Gomu Gomu no Mi", owner: "Luffy", type: "Zoan", origin: "Inconnu", awakening: "Oui", appearance: "Violet", arc: "Romance Dawn" },
+            { name: "Mera Mera no Mi", owner: "Sabo", type: "Logia", origin: "Dressrosa", awakening: "Non", appearance: "Orange", arc: "Enies Lobby" },
+            { name: "Ope Ope no Mi", owner: "Law", type: "Paramecia", origin: "North Blue", awakening: "Oui", appearance: "Rouge", arc: "Archipel Sabaody" },
+            { name: "Hito Hito no Mi: Model Daibutsu", owner: "Sengoku", type: "Zoan", origin: "Inconnu", awakening: "Aucun", appearance: "Doré", arc: "Marineford" }
+        ]
+    };
+
+	let target;
+	let currentMode = 'char';
+	let gameOver = false;
+	let guessedNames = [];
+	let attempts = 0;
+
+	const input = document.getElementById('guessInput');
+	const list = document.getElementById('suggestions');
+	const hintDisplay = document.getElementById('hint-display');
+	const wantedImg = document.getElementById('wanted-target-img');
+	const wantedContainer = document.getElementById('wanted-container');
+
+	function formatBounty(num) {
+    if (num === 0) return "0";
+    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + " Md";
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + " M";
+    return num.toLocaleString();
+}
+
+	function startMode(mode) {
+    currentMode = mode;
+    document.getElementById('menu-screen').style.display = 'none';
+    document.getElementById('game-interface').style.display = 'block';
+    
+    wantedContainer.style.display = (mode === 'wanted') ? 'flex' : 'none';
+    const header = document.getElementById('grid-header');
+
+    if(mode === 'char') {
+        header.className = "grid-header cols-char";
+        header.innerHTML = "<div>Perso</div><div>Genre</div><div>Race</div><div>Equipage</div><div>Fruit</div><div>Haki</div><div>Prime</div><div>Taille</div><div>Origine</div><div>Arc</div>";
+        input.placeholder = "Nom d'un personnage...";
+    } else if(mode === 'fruit') {
+        header.className = "grid-header cols-fruit";
+        header.innerHTML = "<div>Fruit</div><div>Utilisateur</div><div>Type</div><div>Couleur</div><div>Forme</div><div>Arc</div>";
+        input.placeholder = "Nom d'un fruit...";
+    } else {
+        header.className = "grid-header cols-wanted";
+        header.innerHTML = "<div>Image</div><div>Nom du personnage</div>";
+        input.placeholder = "Qui est ce personnage flouté ?";
+    }
+    initGame();
+}
+
+	function initGame() {
+    gameOver = false;
+    guessedNames = [];
+    attempts = 0;
+
+    const sourceData = (currentMode === 'wanted') ? db.char : db[currentMode];
+    target = sourceData[Math.floor(Math.random() * sourceData.length)];
+    
+    document.getElementById('grid').innerHTML = '';
+    hintDisplay.textContent = '';
+    input.disabled = false;
+    input.value = '';
+
+    if (currentMode === 'wanted') {
+        const imgPath = `img/${target.name.split(' ').pop().toLowerCase()}.png`;
+        wantedImg.src = imgPath;
+        wantedImg.style.filter = "grayscale(1) blur(30px)";
+    }
+    input.focus();
+}
+
+	function showHint() {
+    if (gameOver) return;
+    if (currentMode === 'wanted') {
+        hintDisplay.textContent = `💡 Indice : Équipage : "${target.crew}"`;
+    } else {
+        hintDisplay.textContent = currentMode === 'char' 
+            ? `💡 Indice : Arc "${target.arc}"` 
+            : `💡 Indice : Type "${target.type}"`;
+    }
+}
+
+	function makeGuess(item) {
+    guessedNames.push(item.name);
+    attempts++;
+    checkGuess(item);
+    list.innerHTML = '';
+    input.value = '';
+    input.focus();
+}
+
+		input.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') {
+        const firstSuggestion = list.querySelector('li');
+        if (firstSuggestion) {
+            const name = firstSuggestion.getAttribute('data-name');
+            const item = db[currentMode].find(i => i.name === name);
+            if (item) makeGuess(item);
+        } else {
+            e.preventDefault(); // Empêche le rafraîchissement si la liste est vide
+        }
+    }
+});
+
+	input.addEventListener('input', () => {
+		if (gameOver) return;
+		const val = normalizeStr(input.value.trim());
+		list.innerHTML = '';
+		if (val.length < 1) return;
+
+    const matches = db[currentMode].filter(item => 
+        normalizeStr(item.name).includes(val) && !guessedNames.includes(item.name)
+    );
+    
+    matches.forEach((item, index) => {
+        const li = document.createElement('li');
+        const imgPath = `img/${item.name.split(' ').pop().toLowerCase()}.png`;
+        li.setAttribute('data-name', item.name); 
+        li.innerHTML = `<img src="${imgPath}" onerror="this.src='https://via.placeholder.com/45'"> <span>${item.name}</span>`;
+        
+        li.onmousedown = () => makeGuess(item);
+        list.appendChild(li);
+    });
+});
+
+	function checkGuess(guess) {
+    addResultRow(guess);
+    
+    if (currentMode === 'wanted' && !gameOver) {
+        // Défloutage progressif
+        let newBlur = Math.max(0, 30 - (attempts * 5));
+        wantedImg.style.filter = `grayscale(1) blur(${newBlur}px)`;
+    }
+
+    if (guess.name === target.name) {
+        if (currentMode === 'wanted') wantedImg.style.filter = "grayscale(0) blur(0px)";
+        endGame(true);
+    }
+}
+
+	function addResultRow(item) {
+    const row = document.createElement('div');
+    const imgPath = `img/${item.name.split(' ').pop().toLowerCase()}.png`;
+
+    if (currentMode === 'wanted') {
+        row.className = 'row cols-wanted';
+        const status = (item.name === target.name) ? 'correct' : 'wrong';
+        row.innerHTML = `
+            <div class="cell"><img class="char-pic" src="${imgPath}" onerror="this.src='https://via.placeholder.com/60'"></div>
+            <div class="cell ${status}">${item.name}</div>
+        `;
+    } else {
+        // MODE CLASSIQUE (Personnage ou Fruit)
+        row.className = currentMode === 'char' ? 'row cols-char' : 'row cols-fruit';
+        
+        // Image du perso deviné
+        const imgCell = document.createElement('div');
+        imgCell.className = 'cell';
+        imgCell.innerHTML = `<img class="char-pic" src="${imgPath}" onerror="this.src='https://via.placeholder.com/60'">`;
+        row.appendChild(imgCell);
+
+        const fields = currentMode === 'char' 
+            ? ['gender', 'race', 'crew', 'fruit', 'haki', 'bounty', 'height', 'origin', 'arc']
+            : ['owner', 'type', 'appearance', 'origin', 'arc']; 
+
+        fields.forEach(f => {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            let status = (item[f] === target[f]) ? 'correct' : 'wrong';
+
+            if (status === 'wrong' && currentMode === 'char') {
+                if (f === 'haki' && item[f].split(', ').some(h => target[f].includes(h))) status = 'partial';
+                if ((f === 'bounty' || f === 'height') && Math.abs(item[f] - target[f]) <= (f === 'bounty' ? 100000000 : 30)) status = 'partial';
+                if (f === 'arc' && Math.abs(arcOrder.indexOf(item[f]) - arcOrder.indexOf(target[f])) <= 3) status = 'partial';
+            }
+            cell.classList.add(status);
+
+            if (f === 'bounty' && currentMode === 'char') {
+                const arrow = item[f] === target[f] ? '' : `<div class="arrow">${item[f] < target[f] ? '▲' : '▼'}</div>`;
+                cell.innerHTML = `<div>${formatBounty(item[f])}</div>${arrow}`;
+            } else if (f === 'height' || f === 'arc') {
+                let arrow = '';
+                if (item[f] !== target[f]) {
+                    const vI = f === 'height' ? item[f] : arcOrder.indexOf(item[f]);
+                    const vT = f === 'height' ? target[f] : arcOrder.indexOf(target[f]);
+                    arrow = `<div class="arrow">${vI < vT ? '▲' : '▼'}</div>`;
+                }
+                cell.innerHTML = `<div>${f === 'height' ? item[f] + "cm" : item[f]}</div>${arrow}`;
+            } else {
+                cell.textContent = item[f];
+            }
+            row.appendChild(cell);
+        });
+    }
+    document.getElementById('grid').prepend(row);
+}
+
+// Event Listeners (Suggestions)
+	input.addEventListener('input', () => {
+    if (gameOver) return;
+    const val = normalizeStr(input.value.trim());
+    list.innerHTML = '';
+    if (val.length < 1) return;
+
+    const source = (currentMode === 'wanted') ? db.char : db[currentMode];
+    const matches = source.filter(item => normalizeStr(item.name).includes(val) && !guessedNames.includes(item.name));
+    
+    matches.forEach(item => {
+        const li = document.createElement('li');
+        const imgPath = `img/${item.name.split(' ').pop().toLowerCase()}.png`;
+        li.innerHTML = `<img src="${imgPath}" onerror="this.src='https://via.placeholder.com/45'"> <span>${item.name}</span>`;
+        li.onmousedown = () => makeGuess(item);
+        list.appendChild(li);
+    });
+});
+
+	input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        const first = list.querySelector('li');
+        if (first) {
+            const name = first.querySelector('span').textContent;
+            const source = (currentMode === 'wanted') ? db.char : db[currentMode];
+            const item = source.find(i => i.name === name);
+            if (item) makeGuess(item);
+        }
+    }
+});
+
+	function giveUp() {
+    if (!gameOver) {
+        if (currentMode === 'wanted') wantedImg.style.filter = "grayscale(0) blur(0px)";
+        checkGuess(target);
+        endGame(false);
+    }
+}
+
+	function endGame(win) {
+    gameOver = true;
+    input.disabled = true;
+    setTimeout(() => alert(win ? "FÉLICITATIONS ! 🎉" : "DOMMAGE ! C'était : " + target.name), 500);
+}
+
+</script>
+</body>
+</html>
